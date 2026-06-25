@@ -1,8 +1,9 @@
 const path = require('path');
-const SparePartsData = require('../models/SparePartsData');
+const store = require('../store');
 const { parseSpareParts } = require('./sparePartsParser');
 
 let lastHash = '';
+let timer = null;
 
 function hashFile(filePath) {
   try {
@@ -23,12 +24,7 @@ async function pollSpareOnce(filePath) {
     const data = parseSpareParts(filePath);
     if (!data || data.parts.length === 0) return false;
 
-    await SparePartsData.findOneAndReplace(
-      { _id: 'latest' },
-      { _id: 'latest', ...data },
-      { upsert: true, returnDocument: 'after' }
-    );
-
+    store.spare = { ...data, lastUpdated: new Date() };
     lastHash = currentHash;
     console.log(`[Spare] Updated: ${data.totalItems} parts, value: ${data.totalStockValue.toFixed(0)}`);
     return data;
@@ -38,20 +34,19 @@ async function pollSpareOnce(filePath) {
   }
 }
 
-function startSparePolling(filePath, intervalMs, onUpdate) {
+function startSparePolling(filePath, intervalMs) {
+  if (!filePath) {
+    console.log('[Spare] No file path configured, skipping');
+    return;
+  }
   const resolvedPath = path.resolve(__dirname, '..', '..', filePath);
   console.log(`[Spare] Watching: ${resolvedPath} every ${intervalMs}ms`);
 
-  const timer = setInterval(async () => {
-    const data = await pollSpareOnce(resolvedPath);
-    if (data && onUpdate) onUpdate(data);
+  timer = setInterval(async () => {
+    await pollSpareOnce(resolvedPath);
   }, intervalMs);
 
-  pollSpareOnce(resolvedPath).then(data => {
-    if (data && onUpdate) onUpdate(data);
-  });
-
-  return timer;
+  pollSpareOnce(resolvedPath);
 }
 
 module.exports = { startSparePolling, pollSpareOnce };

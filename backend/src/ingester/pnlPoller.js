@@ -1,8 +1,9 @@
 const path = require('path');
-const PnLData = require('../models/PnLData');
+const store = require('../store');
 const { parsePnL } = require('./pnlParser');
 
 let lastHash = '';
+let timer = null;
 
 function hashFile(filePath) {
   try {
@@ -23,12 +24,7 @@ async function pollPnLOnce(filePath) {
     const data = parsePnL(filePath);
     if (!data || data.rows.length === 0) return false;
 
-    await PnLData.findOneAndReplace(
-      { _id: 'latest' },
-      { _id: 'latest', ...data },
-      { upsert: true, returnDocument: 'after' }
-    );
-
+    store.pnl = { ...data, lastUpdated: new Date() };
     lastHash = currentHash;
     console.log(`[PnL] Updated: ${data.rows.length} rows, report: ${data.reportTitle}`);
     return data;
@@ -38,20 +34,19 @@ async function pollPnLOnce(filePath) {
   }
 }
 
-function startPnLPolling(filePath, intervalMs, onUpdate) {
+function startPnLPolling(filePath, intervalMs) {
+  if (!filePath) {
+    console.log('[PnL] No file path configured, skipping');
+    return;
+  }
   const resolvedPath = path.resolve(__dirname, '..', '..', filePath);
   console.log(`[PnL] Watching: ${resolvedPath} every ${intervalMs}ms`);
 
-  const timer = setInterval(async () => {
-    const data = await pollPnLOnce(resolvedPath);
-    if (data && onUpdate) onUpdate(data);
+  timer = setInterval(async () => {
+    await pollPnLOnce(resolvedPath);
   }, intervalMs);
 
-  pollPnLOnce(resolvedPath).then(data => {
-    if (data && onUpdate) onUpdate(data);
-  });
-
-  return timer;
+  pollPnLOnce(resolvedPath);
 }
 
 module.exports = { startPnLPolling, pollPnLOnce };

@@ -1,7 +1,6 @@
 const fs = require('fs');
-const crypto = require('crypto');
 const path = require('path');
-const PlantRecord = require('../models/PlantRecord');
+const store = require('../store');
 const { parsePlantRecord } = require('./parser');
 
 let lastHash = '';
@@ -31,12 +30,7 @@ async function pollOnce(filePath) {
       return false;
     }
 
-    await PlantRecord.findOneAndReplace(
-      { _id: 'latest' },
-      { _id: 'latest', ...data },
-      { upsert: true, returnDocument: 'after' }
-    );
-
+    store.plant = { ...data, lastUpdated: new Date() };
     lastHash = currentHash;
     console.log(`[Poller] Updated: ${data.batchCount} batches, latest: ${data.lastBatchTimestamp}`);
     return data;
@@ -46,18 +40,19 @@ async function pollOnce(filePath) {
   }
 }
 
-function startPolling(filePath, intervalMs, onUpdate) {
+function startPolling(filePath, intervalMs) {
+  if (!filePath) {
+    console.log('[Poller] No file path configured, skipping');
+    return;
+  }
   const resolvedPath = path.resolve(__dirname, '..', '..', filePath);
   console.log(`[Poller] Watching: ${resolvedPath} every ${intervalMs}ms`);
 
   pollTimer = setInterval(async () => {
-    const data = await pollOnce(resolvedPath);
-    if (data && onUpdate) onUpdate(data);
+    await pollOnce(resolvedPath);
   }, intervalMs);
 
-  pollOnce(resolvedPath).then(data => {
-    if (data && onUpdate) onUpdate(data);
-  });
+  pollOnce(resolvedPath);
 }
 
 function stopPolling() {
