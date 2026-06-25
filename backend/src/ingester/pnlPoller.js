@@ -1,5 +1,5 @@
 const path = require('path');
-const store = require('../store');
+const PnLData = require('../models/PnLData');
 const { parsePnL } = require('./pnlParser');
 
 let lastHash = '';
@@ -24,7 +24,12 @@ async function pollPnLOnce(filePath) {
     const data = parsePnL(filePath);
     if (!data || data.rows.length === 0) return false;
 
-    store.pnl = { ...data, lastUpdated: new Date() };
+    await PnLData.findOneAndReplace(
+      { _id: 'latest' },
+      { _id: 'latest', ...data },
+      { upsert: true, returnDocument: 'after' }
+    );
+
     lastHash = currentHash;
     console.log(`[PnL] Updated: ${data.rows.length} rows, report: ${data.reportTitle}`);
     return data;

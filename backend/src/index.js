@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const { connectDB } = require('./db');
 const { startPolling } = require('./ingester/poller');
 const { startPnLPolling } = require('./ingester/pnlPoller');
 const { startSparePolling } = require('./ingester/sparePartsPoller');
@@ -30,9 +31,8 @@ app.use((req, res, next) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
+async function main() {
+  await connectDB();
 
   startPolling(
     process.env.EXCEL_PATH,
@@ -48,4 +48,14 @@ app.listen(PORT, '0.0.0.0', () => {
     process.env.SPARE_EXCEL_PATH,
     parseInt(process.env.POLL_INTERVAL_MS_SPARE || '5000')
   );
+
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+main().catch((err) => {
+  console.error('[Server] Failed to start:', err.message);
+  process.exit(1);
 });

@@ -1,5 +1,5 @@
 const path = require('path');
-const store = require('../store');
+const SparePartsData = require('../models/SparePartsData');
 const { parseSpareParts } = require('./sparePartsParser');
 
 let lastHash = '';
@@ -24,7 +24,12 @@ async function pollSpareOnce(filePath) {
     const data = parseSpareParts(filePath);
     if (!data || data.parts.length === 0) return false;
 
-    store.spare = { ...data, lastUpdated: new Date() };
+    await SparePartsData.findOneAndReplace(
+      { _id: 'latest' },
+      { _id: 'latest', ...data },
+      { upsert: true, returnDocument: 'after' }
+    );
+
     lastHash = currentHash;
     console.log(`[Spare] Updated: ${data.totalItems} parts, value: ${data.totalStockValue.toFixed(0)}`);
     return data;

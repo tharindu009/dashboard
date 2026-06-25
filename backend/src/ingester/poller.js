@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const store = require('../store');
+const PlantRecord = require('../models/PlantRecord');
 const { parsePlantRecord } = require('./parser');
 
 let lastHash = '';
@@ -30,7 +30,12 @@ async function pollOnce(filePath) {
       return false;
     }
 
-    store.plant = { ...data, lastUpdated: new Date() };
+    await PlantRecord.findOneAndReplace(
+      { _id: 'latest' },
+      { _id: 'latest', ...data },
+      { upsert: true, returnDocument: 'after' }
+    );
+
     lastHash = currentHash;
     console.log(`[Poller] Updated: ${data.batchCount} batches, latest: ${data.lastBatchTimestamp}`);
     return data;
