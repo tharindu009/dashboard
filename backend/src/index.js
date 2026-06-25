@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -24,6 +25,15 @@ app.use(express.json());
 app.use('/api/plant', plantRoutes);
 app.use('/api/pnl', pnlRoutes);
 app.use('/api/spare-parts', spareRoutes);
+
+const distPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+app.use(express.static(distPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
