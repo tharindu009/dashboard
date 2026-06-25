@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import useStore from './store';
 import PlantTab from './components/PlantTab';
 import PnLTab from './components/PnLTab';
@@ -17,7 +17,14 @@ function App() {
   const setStatus = useStore((s) => s.setStatus);
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
+  const lastUpdate = useStore((s) => s.lastUpdate);
   const status = useStore((s) => s.status);
+  const [clock, setClock] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const secondsAgo = lastUpdate ? Math.floor((Date.now() - new Date(lastUpdate).getTime()) / 1000) : null;
 
   useEffect(() => {
     const fetchAll = () => {
@@ -47,9 +54,15 @@ function App() {
           <h1 className="text-lg font-bold text-gray-900">Mathugama Asphalt Plant</h1>
           <p className="text-xs text-gray-500">TTM LB 2000 — Real-time Dashboard</p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`w-2.5 h-2.5 rounded-full ${statusColor[status] || 'bg-gray-400'}`} />
-          <span className="text-xs text-gray-600 capitalize">{status}</span>
+        <div className="flex flex-col items-end gap-0.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600 tabular-nums">{clock.toLocaleTimeString()}</span>
+            <span className={`w-2 h-2 rounded-full ${statusColor[status] || 'bg-gray-400'}`} />
+            <span className="text-xs text-gray-600 capitalize">{status}</span>
+          </div>
+          {secondsAgo !== null && (
+            <span className="text-[10px] text-gray-400 tabular-nums">Updated {secondsAgo}s ago</span>
+          )}
         </div>
       </header>
 
