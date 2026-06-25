@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import useStore from './store';
-import socket from './socket';
 import PlantTab from './components/PlantTab';
 import PnLTab from './components/PnLTab';
 import SpareTab from './components/SpareTab';
@@ -15,31 +14,28 @@ function App() {
   const setPlantData = useStore((s) => s.setPlantData);
   const setPnLData = useStore((s) => s.setPnLData);
   const setSpareData = useStore((s) => s.setSpareData);
-  const setConnected = useStore((s) => s.setConnected);
   const setStatus = useStore((s) => s.setStatus);
   const activeTab = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
   const status = useStore((s) => s.status);
 
   useEffect(() => {
-    socket.on('connect', () => { setConnected(true); setStatus('live'); });
-    socket.on('disconnect', () => { setConnected(false); setStatus('connecting'); });
-    socket.on('plant:update', (data) => setPlantData(data));
-    socket.on('pnl:update', (data) => setPnLData(data));
-    socket.on('spare:update', (data) => setSpareData(data));
-
-    fetch('/api/plant')
-      .then((r) => r.json())
-      .then((d) => { if (d && d.lastBatchTimestamp) setPlantData(d); })
-      .catch(() => setStatus('error'));
-
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('plant:update');
-      socket.off('pnl:update');
-      socket.off('spare:update');
+    const fetchAll = () => {
+      Promise.all([
+        fetch('/api/plant').then((r) => r.json()).then((d) => {
+          if (d && d.lastBatchTimestamp) setPlantData(d);
+        }),
+        fetch('/api/pnl').then((r) => r.json()).then((d) => {
+          if (d && d.rows) setPnLData(d);
+        }),
+        fetch('/api/spare-parts').then((r) => r.json()).then((d) => {
+          if (d && d.parts) setSpareData(d);
+        }),
+      ]).catch(() => setStatus('error'));
     };
+    fetchAll();
+    const timer = setInterval(fetchAll, 4000);
+    return () => clearInterval(timer);
   }, []);
 
   const statusColor = { live: 'bg-green-500', connecting: 'bg-yellow-500', error: 'bg-red-500', waiting: 'bg-gray-400' };

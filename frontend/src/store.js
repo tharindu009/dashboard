@@ -5,7 +5,6 @@ const useStore = create((set) => ({
   pnlData: null,
   spareData: null,
   activeTab: 'plant',
-  connected: false,
   lastUpdate: null,
   status: 'connecting',
 
@@ -19,8 +18,6 @@ const useStore = create((set) => ({
     set({ spareData: data, lastUpdate: new Date(), status: 'live' }),
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-
-  setConnected: (connected) => set({ connected, status: connected ? 'live' : 'connecting' }),
 
   setStatus: (status) => set({ status }),
 }));
